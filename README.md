@@ -1,73 +1,190 @@
-# Welcome to your Lovable project
 
-## Project info
+# Multilingual Voice Chatbot with Groq API
 
-**URL**: https://lovable.dev/projects/3967e8eb-907e-4155-88bd-84588c670e13
+A modern voice chatbot that supports multilingual conversations using Groq API for language processing, Google Cloud services for speech recognition and synthesis, and real-time voice interaction.
 
-## How can I edit this code?
+## Features
 
-There are several ways of editing your application.
+- 🎙️ Real-time voice recording and playback
+- 🌍 Multilingual support (English, Spanish, French)
+- 🤖 Powered by Groq API for intelligent responses
+- 🎵 High-quality text-to-speech synthesis
+- 📱 Responsive modern UI with gradient backgrounds
+- 🔄 Real-time translation between languages
 
-**Use Lovable**
+## Architecture
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/3967e8eb-907e-4155-88bd-84588c670e13) and start prompting.
+### Frontend (React + TypeScript)
+- Modern voice recording interface
+- Real-time audio visualization
+- Chat message history with audio playback
+- Language selection and management
 
-Changes made via Lovable will be committed automatically to this repo.
+### Backend (Django REST API)
+- Speech-to-Text using Google Cloud Speech API
+- Text-to-Speech using Google Cloud TTS API
+- Language translation using Google Translate API
+- Groq API integration for intelligent responses
+- RESTful API for frontend communication
 
-**Use your preferred IDE**
+## Setup Instructions
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Prerequisites
+- Node.js (v16+) and npm
+- Python 3.8+
+- Google Cloud account with Speech, TTS, and Translate APIs enabled
+- Groq API key
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### Backend Setup
 
-Follow these steps:
+1. **Navigate to backend directory:**
+   ```bash
+   cd backend
+   ```
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+2. **Create virtual environment:**
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+3. **Install dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-# Step 3: Install the necessary dependencies.
-npm i
+4. **Set up environment variables:**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your API keys and credentials
+   ```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+5. **Configure Google Cloud credentials:**
+   - Download your Google Cloud service account JSON file
+   - Set the path in your .env file or export as environment variable:
+     ```bash
+     export GOOGLE_APPLICATION_CREDENTIALS="path/to/your/credentials.json"
+     ```
+
+6. **Run Django migrations:**
+   ```bash
+   python manage.py migrate
+   ```
+
+7. **Start the backend server:**
+   ```bash
+   python manage.py runserver
+   ```
+
+The backend will be available at `http://localhost:8000`
+
+### Frontend Setup
+
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+2. **Start the development server:**
+   ```bash
+   npm run dev
+   ```
+
+The frontend will be available at `http://localhost:5173`
+
+## API Configuration
+
+### Required API Keys
+
+1. **Groq API Key:**
+   - Sign up at [https://console.groq.com](https://console.groq.com)
+   - Create an API key
+   - Add to your backend .env file
+
+2. **Google Cloud APIs:**
+   - Enable Speech-to-Text API
+   - Enable Text-to-Speech API  
+   - Enable Cloud Translation API
+   - Create service account and download JSON credentials
+
+### Environment Variables
+
+```bash
+# Backend .env file
+GROQ_API_KEY=your_groq_api_key_here
+GOOGLE_APPLICATION_CREDENTIALS=path/to/google-credentials.json
+DEBUG=True
+SECRET_KEY=your-django-secret-key
 ```
 
-**Edit a file directly in GitHub**
+## Usage
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+1. **Start both servers** (backend on :8000, frontend on :5173)
+2. **Select your preferred language** from the dropdown
+3. **Click the microphone button** to start recording
+4. **Speak your message** clearly
+5. **Click stop** to send your message to the AI
+6. **Listen to the AI response** which will be played automatically
 
-**Use GitHub Codespaces**
+## Supported Languages
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+- English (en) 🇺🇸
+- Spanish (es) 🇪🇸  
+- French (fr) 🇫🇷
 
-## What technologies are used for this project?
+The system automatically translates between languages, so you can speak in your preferred language and receive responses in the same language.
 
-This project is built with:
+## Technology Stack
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### Frontend
+- React 18 with TypeScript
+- Tailwind CSS for styling
+- shadcn/ui component library
+- Web Audio API for recording
+- Lucide React for icons
 
-## How can I deploy this project?
+### Backend
+- Django 4+ with Django REST Framework
+- Google Cloud Speech-to-Text API
+- Google Cloud Text-to-Speech API
+- Google Cloud Translation API
+- Groq API for language model
+- CORS support for frontend communication
 
-Simply open [Lovable](https://lovable.dev/projects/3967e8eb-907e-4155-88bd-84588c670e13) and click on Share -> Publish.
+## Troubleshooting
 
-## Can I connect a custom domain to my Lovable project?
+### Common Issues
 
-Yes, you can!
+1. **Microphone not working:**
+   - Ensure browser permissions for microphone access
+   - Check if HTTPS is required in production
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+2. **Backend connection errors:**
+   - Verify Django server is running on port 8000
+   - Check CORS settings in Django settings.py
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+3. **Google Cloud API errors:**
+   - Verify API keys and credentials are correctly set
+   - Ensure all required APIs are enabled in Google Cloud Console
+
+4. **Groq API errors:**
+   - Check your API key is valid and has sufficient quota
+   - Verify the model name is correct
+
+### Performance Tips
+
+- Use a good quality microphone for better speech recognition
+- Speak clearly and avoid background noise
+- Ensure stable internet connection for API calls
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## License
+
+This project is open source and available under the MIT License.

@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -8,6 +7,7 @@ import ChatMessage from './ChatMessage';
 import VoiceRecorder from './VoiceRecorder';
 import AudioPlayer from './AudioPlayer';
 import { useToast } from '@/hooks/use-toast';
+import { chatbotService } from '../services/chatbotService';
 
 interface Message {
   id: string;
@@ -22,7 +22,6 @@ const VoiceChatbot = () => {
   const [selectedLanguage, setSelectedLanguage] = useState('en');
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [recordedAudio, setRecordedAudio] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -40,11 +39,10 @@ const VoiceChatbot = () => {
     setIsProcessing(true);
     
     try {
-      // Convert blob to base64
+      // Convert blob to base64 for user message
       const reader = new FileReader();
-      reader.onloadend = async () => {
+      reader.onloadend = () => {
         const base64Audio = reader.result as string;
-        const audioBase64 = base64Audio.split(',')[1];
         
         // Add user message
         const userMessage: Message = {
@@ -56,33 +54,49 @@ const VoiceChatbot = () => {
         };
         
         setMessages(prev => [...prev, userMessage]);
-        
-        // Simulate API call and response
-        setTimeout(() => {
-          const botResponse: Message = {
-            id: (Date.now() + 1).toString(),
-            type: 'bot',
-            text: generateMockResponse(selectedLanguage),
-            timestamp: new Date(),
-          };
-          
-          setMessages(prev => [...prev, botResponse]);
-          setIsProcessing(false);
-          
-          toast({
-            title: "Response ready",
-            description: "AI has responded to your message",
-          });
-        }, 2000);
+      };
+      reader.readAsDataURL(audioBlob);
+      
+      // Send to backend
+      const response = await chatbotService.sendVoiceMessage(audioBlob, selectedLanguage);
+      
+      // Create audio URL from base64
+      const audioUrl = `data:audio/mp3;base64,${response.response_audio}`;
+      
+      // Add bot response
+      const botResponse: Message = {
+        id: (Date.now() + 1).toString(),
+        type: 'bot',
+        text: response.response_text,
+        audio: audioUrl,
+        timestamp: new Date(),
       };
       
-      reader.readAsDataURL(audioBlob);
+      setMessages(prev => [...prev, botResponse]);
+      setIsProcessing(false);
+      
+      toast({
+        title: "Response ready",
+        description: "AI has responded to your message",
+      });
+      
     } catch (error) {
       console.error('Error processing audio:', error);
       setIsProcessing(false);
+      
+      // Add error message
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        type: 'bot',
+        text: 'Sorry, I encountered an error processing your message. Please make sure the backend server is running.',
+        timestamp: new Date(),
+      };
+      
+      setMessages(prev => [...prev, errorMessage]);
+      
       toast({
         title: "Error",
-        description: "Failed to process your voice message",
+        description: "Failed to process your voice message. Check if backend is running.",
         variant: "destructive",
       });
     }
@@ -112,9 +126,9 @@ const VoiceChatbot = () => {
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
           <div className="text-center sm:text-left">
             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Voice AI Assistant
+              Multilingual Voice AI Assistant
             </h1>
-            <p className="text-gray-600 mt-1">Speak naturally in your preferred language</p>
+            <p className="text-gray-600 mt-1">Powered by Groq API - Speak naturally in your preferred language</p>
           </div>
           
           <div className="flex items-center gap-4">
@@ -150,6 +164,9 @@ const VoiceChatbot = () => {
                 <Mic className="mx-auto h-12 w-12 mb-4 opacity-50" />
                 <p className="text-lg">Start a conversation by recording your voice</p>
                 <p className="text-sm mt-2">Press and hold the microphone button to record</p>
+                <p className="text-xs mt-4 text-orange-600">
+                  Make sure the Django backend is running on localhost:8000
+                </p>
               </div>
             </div>
           )}
@@ -163,7 +180,7 @@ const VoiceChatbot = () => {
               <Card className="p-4 bg-gray-100 max-w-xs">
                 <div className="flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-sm text-gray-600">AI is thinking...</span>
+                  <span className="text-sm text-gray-600">Groq AI is thinking...</span>
                 </div>
               </Card>
             </div>
