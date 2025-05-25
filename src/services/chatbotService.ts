@@ -27,6 +27,9 @@ export const chatbotService = {
             language: language,
           };
           
+          console.log('Sending request to backend:', `${BACKEND_URL}/chatbot/`);
+          console.log('Payload language:', language);
+          
           const response = await fetch(`${BACKEND_URL}/chatbot/`, {
             method: 'POST',
             headers: {
@@ -35,14 +38,24 @@ export const chatbotService = {
             body: JSON.stringify(payload),
           });
           
+          console.log('Backend response status:', response.status);
+          
           if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorText = await response.text();
+            console.error('Backend error response:', errorText);
+            throw new Error(`Backend error (${response.status}): ${errorText}`);
           }
           
           const data: ChatbotResponse = await response.json();
+          console.log('Received response from backend:', data.response_text);
           resolve(data);
         } catch (error) {
-          reject(error);
+          console.error('Error in chatbot service:', error);
+          if (error instanceof TypeError && error.message.includes('fetch')) {
+            reject(new Error('Cannot connect to backend server. Make sure Django is running on localhost:8000'));
+          } else {
+            reject(error);
+          }
         }
       };
       
