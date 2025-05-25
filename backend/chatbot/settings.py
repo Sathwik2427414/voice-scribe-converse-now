@@ -52,5 +52,5 @@ STATIC_URL = '/static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # API Keys (set these in your environment)
-GROQ_API_KEY = os.getenv('GROQ_API_KEY', 'your-groq-api-key-here')
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', 'your-gemini-api-key-here')
 GOOGLE_APPLICATION_CREDENTIALS = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')

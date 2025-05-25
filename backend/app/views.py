@@ -7,7 +7,7 @@ from rest_framework import status
 from google.cloud import speech_v1p1beta1 as speech
 from google.cloud import texttospeech
 from google.cloud import translate_v2 as translate
-from groq import Groq
+import google.generativeai as genai
 from django.conf import settings
 
 # Initialize clients
@@ -15,13 +15,14 @@ try:
     speech_client = speech.SpeechClient()
     tts_client = texttospeech.TextToSpeechClient()
     translate_client = translate.Client()
-    groq_client = Groq(api_key=settings.GROQ_API_KEY)
+    genai.configure(api_key=settings.GEMINI_API_KEY)
+    gemini_model = genai.GenerativeModel('gemini-pro')
 except Exception as e:
     print(f"Warning: Could not initialize all clients: {e}")
     speech_client = None
     tts_client = None
     translate_client = None
-    groq_client = None
+    gemini_model = None
 
 class ChatbotAPIView(APIView):
     def post(self, request):
@@ -43,11 +44,11 @@ class ChatbotAPIView(APIView):
                 return Response({"error": "Could not transcribe audio."}, 
                               status=status.HTTP_400_BAD_REQUEST)
             
-            # Translate user input to English for Groq API if needed
-            text_for_groq = text if user_lang == "en" else self.translate_text(text, "en")
+            # Translate user input to English for Gemini API if needed
+            text_for_gemini = text if user_lang == "en" else self.translate_text(text, "en")
             
-            # Call Groq API for response generation
-            response_text_en = self.call_groq_api(text_for_groq)
+            # Call Gemini API for response generation
+            response_text_en = self.call_gemini_api(text_for_gemini)
             
             # Translate response back to user language if needed
             response_text = response_text_en if user_lang == "en" else self.translate_text(response_text_en, user_lang)
@@ -99,31 +100,23 @@ class ChatbotAPIView(APIView):
             print(f"Translation error: {e}")
             return text
     
-    def call_groq_api(self, prompt):
-        if not groq_client:
-            return "Groq API service not available"
+    def call_gemini_api(self, prompt):
+        if not gemini_model:
+            return "Gemini API service not available"
         
         try:
-            chat_completion = groq_client.chat.completions.create(
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are a helpful multilingual assistant. Provide concise, friendly responses."
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ],
-                model="mixtral-8x7b-32768",  # or "llama2-70b-4096"
-                max_tokens=150,
-                temperature=0.7
+            response = gemini_model.generate_content(
+                prompt,
+                generation_config=genai.types.GenerationConfig(
+                    max_output_tokens=150,
+                    temperature=0.7,
+                )
             )
             
-            return chat_completion.choices[0].message.content
+            return response.text
             
         except Exception as e:
-            print(f"Groq API error: {e}")
+            print(f"Gemini API error: {e}")
             return f"I'm sorry, I encountered an error: {str(e)}"
     
     def text_to_speech(self, text, language_code):
