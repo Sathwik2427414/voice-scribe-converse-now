@@ -1,14 +1,18 @@
 
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-replace-with-your-secret-key-in-production'
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-replace-with-your-secret-key-in-production')
 
-DEBUG = True
+DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '*']
 
 INSTALLED_APPS = [
     'django.contrib.contenttypes',
@@ -32,6 +36,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
 ]
 
+CORS_ALLOW_ALL_ORIGINS = True  # For development only
 CORS_ALLOW_CREDENTIALS = True
 
 ROOT_URLCONF = 'chatbot.urls'
@@ -51,6 +56,11 @@ STATIC_URL = '/static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# API Keys (set these in your environment)
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', 'your-gemini-api-key-here')
+# API Keys from environment
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
 GOOGLE_APPLICATION_CREDENTIALS = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+
+# Print API key status for debugging
+print(f"Gemini API Key loaded: {'Yes' if GEMINI_API_KEY else 'No'}")
+if GEMINI_API_KEY:
+    print(f"API Key starts with: {GEMINI_API_KEY[:10]}...")
