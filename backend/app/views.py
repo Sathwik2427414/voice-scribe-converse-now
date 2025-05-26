@@ -4,31 +4,31 @@ import io
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from groq import Groq
 from django.conf import settings
+from .services import VoiceChatbotService
 
-# Initialize Groq client
-try:
-    if settings.GROQ_API_KEY:
-        groq_client = Groq(api_key=settings.GROQ_API_KEY)
-        print("Groq API configured successfully")
-    else:
-        print("Warning: GROQ_API_KEY not found in settings")
-        groq_client = None
-except Exception as e:
-    print(f"Warning: Could not initialize Groq client: {e}")
-    groq_client = None
+# Initialize the voice chatbot service
+voice_service = VoiceChatbotService()
 
 class ChatbotAPIView(APIView):
     def get(self, request):
         """Health check endpoint"""
         return Response({
             "status": "OK", 
-            "message": "Chatbot API is running",
-            "groq_configured": bool(groq_client)
+            "message": "Multilingual Voice Chatbot API is running",
+            "groq_configured": bool(voice_service.groq_client),
+            "google_cloud_configured": bool(voice_service.speech_client and voice_service.tts_client),
+            "supported_languages": ["en", "es", "fr"],
+            "features": [
+                "Speech-to-Text",
+                "Text-to-Speech", 
+                "Language Translation",
+                "Groq AI Integration"
+            ]
         })
     
     def post(self, request):
+        """Process voice message with full STT/TTS/Translation workflow"""
         try:
             audio_b64 = request.data.get("audio")
             user_lang = request.data.get("language", "en")
@@ -37,51 +37,73 @@ class ChatbotAPIView(APIView):
                 return Response({"error": "No audio provided."}, 
                               status=status.HTTP_400_BAD_REQUEST)
             
-            # For now, simulate speech-to-text with a placeholder
-            # In a full implementation, you'd use Google Cloud Speech-to-Text
-            text_for_groq = "Hello, I sent you a voice message. Please respond appropriately."
+            # Validate language
+            supported_languages = ["en", "es", "fr"]
+            if user_lang not in supported_languages:
+                return Response({"error": f"Unsupported language: {user_lang}. Supported: {supported_languages}"}, 
+                              status=status.HTTP_400_BAD_REQUEST)
             
-            # Call Groq API for response generation
-            response_text = self.call_groq_api(text_for_groq, user_lang)
+            # Decode audio data
+            try:
+                audio_data = base64.b64decode(audio_b64)
+            except Exception as e:
+                return Response({"error": f"Invalid audio data: {str(e)}"}, 
+                              status=status.HTTP_400_BAD_REQUEST)
             
-            # For now, return empty audio (in a full implementation, use Google Cloud TTS)
-            audio_response_b64 = ""
+            print(f"Processing voice message in language: {user_lang}")
+            print(f"Audio data size: {len(audio_data)} bytes")
+            
+            # Process through complete workflow
+            result = voice_service.process_voice_message(audio_data, user_lang)
             
             return Response({
-                "response_audio": audio_response_b64,
-                "response_text": response_text
+                "user_text": result["user_text"],
+                "response_text": result["response_text"],
+                "response_audio": result["response_audio"],
+                "language": user_lang,
+                "workflow_completed": True
             })
             
         except Exception as e:
             print(f"Error in ChatbotAPIView: {e}")
             return Response({"error": str(e)}, 
                           status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-    
-    def call_groq_api(self, prompt, language="en"):
-        if not groq_client:
-            return "Groq API service not available. Please check your API key configuration."
-        
+
+class LanguageTestAPIView(APIView):
+    """Test endpoint for language capabilities"""
+    def post(self, request):
         try:
-            # Create language-specific prompt
-            language_names = {"en": "English", "es": "Spanish", "fr": "French"}
-            lang_name = language_names.get(language, "English")
+            text = request.data.get("text", "Hello, how are you?")
+            source_lang = request.data.get("source_language", "en")
+            target_lang = request.data.get("target_language", "es")
             
-            full_prompt = f"Please respond in {lang_name} to this message: {prompt}"
+            # Test translation
+            translated = voice_service.translate_text(text, target_lang, source_lang)
             
-            response = groq_client.chat.completions.create(
-                messages=[
-                    {
-                        "role": "user",
-                        "content": full_prompt
-                    }
-                ],
-                model="llama3-8b-8192",
-                max_tokens=150,
-                temperature=0.7,
+            # Test Groq response
+            groq_response = voice_service.get_groq_response(translated, target_lang)
+            
+            # Test TTS
+            lang_mapping = {
+                "en": "en-US",
+                "es": "es-ES", 
+                "fr": "fr-FR"
+            }
+            
+            tts_audio = voice_service.text_to_speech(
+                groq_response, 
+                lang_mapping.get(target_lang, "en-US")
             )
             
-            return response.choices[0].message.content
+            return Response({
+                "original_text": text,
+                "translated_text": translated,
+                "ai_response": groq_response,
+                "audio_generated": bool(tts_audio),
+                "source_language": source_lang,
+                "target_language": target_lang
+            })
             
         except Exception as e:
-            print(f"Groq API error: {e}")
-            return f"I'm sorry, I encountered an error while processing your request: {str(e)}"
+            return Response({"error": str(e)}, 
+                          status=status.HTTP_500_INTERNAL_SERVER_ERROR)

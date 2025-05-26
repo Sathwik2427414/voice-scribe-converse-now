@@ -7,11 +7,40 @@ export interface ChatbotRequest {
 }
 
 export interface ChatbotResponse {
+  user_text: string;
   response_audio: string;
   response_text: string;
+  language: string;
+  workflow_completed: boolean;
+}
+
+export interface LanguageTestRequest {
+  text: string;
+  source_language: string;
+  target_language: string;
+}
+
+export interface BackendStatus {
+  status: string;
+  groq_configured: boolean;
+  google_cloud_configured: boolean;
+  supported_languages: string[];
+  features: string[];
 }
 
 export const chatbotService = {
+  async getBackendStatus(): Promise<BackendStatus> {
+    const response = await fetch(`${BACKEND_URL}/chatbot/`, {
+      method: 'GET',
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Backend status check failed: ${response.status}`);
+    }
+    
+    return await response.json();
+  },
+
   async sendVoiceMessage(audioBlob: Blob, language: string): Promise<ChatbotResponse> {
     // Convert blob to base64
     const reader = new FileReader();
@@ -27,8 +56,9 @@ export const chatbotService = {
             language: language,
           };
           
-          console.log('Sending request to backend:', `${BACKEND_URL}/chatbot/`);
-          console.log('Payload language:', language);
+          console.log('Sending voice message to backend:', `${BACKEND_URL}/chatbot/`);
+          console.log('Language:', language);
+          console.log('Audio size:', audioBlob.size, 'bytes');
           
           const response = await fetch(`${BACKEND_URL}/chatbot/`, {
             method: 'POST',
@@ -47,7 +77,14 @@ export const chatbotService = {
           }
           
           const data: ChatbotResponse = await response.json();
-          console.log('Received response from backend:', data.response_text);
+          console.log('Received response:', {
+            user_text: data.user_text,
+            response_text: data.response_text,
+            language: data.language,
+            workflow_completed: data.workflow_completed,
+            has_audio: !!data.response_audio
+          });
+          
           resolve(data);
         } catch (error) {
           console.error('Error in chatbot service:', error);
@@ -62,5 +99,27 @@ export const chatbotService = {
       reader.onerror = () => reject(new Error('Failed to read audio file'));
       reader.readAsDataURL(audioBlob);
     });
+  },
+
+  async testLanguageFeatures(text: string, sourceLang: string, targetLang: string) {
+    const payload: LanguageTestRequest = {
+      text,
+      source_language: sourceLang,
+      target_language: targetLang,
+    };
+    
+    const response = await fetch(`${BACKEND_URL}/test-language/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Language test failed: ${response.status}`);
+    }
+    
+    return await response.json();
   }
 };

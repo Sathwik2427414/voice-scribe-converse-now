@@ -3,10 +3,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Mic, MicOff, Send, Volume2, Loader2, AlertCircle } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import ChatMessage from './ChatMessage';
 import VoiceRecorder from './VoiceRecorder';
-import AudioPlayer from './AudioPlayer';
+import BackendStatus from './BackendStatus';
 import { useToast } from '@/hooks/use-toast';
 import { chatbotService } from '../services/chatbotService';
 
@@ -16,6 +16,7 @@ interface Message {
   text: string;
   audio?: string;
   timestamp: Date;
+  language?: string;
 }
 
 const VoiceChatbot = () => {
@@ -23,7 +24,6 @@ const VoiceChatbot = () => {
   const [selectedLanguage, setSelectedLanguage] = useState('en');
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [backendStatus, setBackendStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -33,23 +33,6 @@ const VoiceChatbot = () => {
     { code: 'fr', name: 'Français', flag: '🇫🇷' },
   ];
 
-  // Check backend status on mount
-  useEffect(() => {
-    const checkBackendStatus = async () => {
-      try {
-        const response = await fetch('http://localhost:8000/api/chatbot/', {
-          method: 'GET',
-        });
-        setBackendStatus('connected');
-      } catch (error) {
-        setBackendStatus('disconnected');
-        console.error('Backend connection check failed:', error);
-      }
-    };
-
-    checkBackendStatus();
-  }, []);
-
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -58,7 +41,7 @@ const VoiceChatbot = () => {
     setIsProcessing(true);
     
     try {
-      // Convert blob to base64 for user message
+      // Convert blob to base64 for user message display
       const reader = new FileReader();
       reader.onloadend = () => {
         const base64Audio = reader.result as string;
@@ -70,17 +53,28 @@ const VoiceChatbot = () => {
           text: 'Voice message...',
           audio: base64Audio,
           timestamp: new Date(),
+          language: selectedLanguage,
         };
         
         setMessages(prev => [...prev, userMessage]);
       };
       reader.readAsDataURL(audioBlob);
       
-      // Send to backend
+      // Send to backend for full processing
+      console.log('Sending voice message for processing...');
       const response = await chatbotService.sendVoiceMessage(audioBlob, selectedLanguage);
       
-      // Create audio URL from base64
-      const audioUrl = `data:audio/mp3;base64,${response.response_audio}`;
+      // Update user message with transcribed text
+      setMessages(prev => prev.map(msg => 
+        msg.id === Date.now().toString() 
+          ? { ...msg, text: response.user_text || 'Voice message processed' }
+          : msg
+      ));
+      
+      // Create audio URL from base64 if available
+      const audioUrl = response.response_audio 
+        ? `data:audio/mp3;base64,${response.response_audio}` 
+        : undefined;
       
       // Add bot response
       const botResponse: Message = {
@@ -89,35 +83,34 @@ const VoiceChatbot = () => {
         text: response.response_text,
         audio: audioUrl,
         timestamp: new Date(),
+        language: response.language,
       };
       
       setMessages(prev => [...prev, botResponse]);
       setIsProcessing(false);
-      setBackendStatus('connected');
       
       toast({
-        title: "Response ready",
-        description: "AI has responded to your message",
+        title: "Response Ready",
+        description: `AI responded in ${selectedLanguage.toUpperCase()}`,
       });
       
     } catch (error) {
-      console.error('Error processing audio:', error);
+      console.error('Error processing voice message:', error);
       setIsProcessing(false);
-      setBackendStatus('disconnected');
       
       // Add error message
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         type: 'bot',
-        text: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. Please make sure the Django backend is running on localhost:8000 with proper API keys configured.`,
+        text: `Sorry, I encountered an error: ${error instanceof Error ? error.message : 'Unknown error'}. Please make sure the Django backend is running with proper API configuration.`,
         timestamp: new Date(),
       };
       
       setMessages(prev => [...prev, errorMessage]);
       
       toast({
-        title: "Connection Error",
-        description: "Failed to connect to backend. Check if Django server is running.",
+        title: "Processing Error",
+        description: "Failed to process voice message",
         variant: "destructive",
       });
     }
@@ -126,35 +119,9 @@ const VoiceChatbot = () => {
   const clearChat = () => {
     setMessages([]);
     toast({
-      title: "Chat cleared",
+      title: "Chat Cleared",
       description: "All messages have been removed",
     });
-  };
-
-  const BackendStatusIndicator = () => {
-    switch (backendStatus) {
-      case 'checking':
-        return (
-          <div className="flex items-center gap-2 text-yellow-600">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span className="text-sm">Checking backend...</span>
-          </div>
-        );
-      case 'connected':
-        return (
-          <div className="flex items-center gap-2 text-green-600">
-            <div className="h-2 w-2 bg-green-500 rounded-full animate-pulse"></div>
-            <span className="text-sm">Backend connected</span>
-          </div>
-        );
-      case 'disconnected':
-        return (
-          <div className="flex items-center gap-2 text-red-600">
-            <AlertCircle className="h-4 w-4" />
-            <span className="text-sm">Backend disconnected</span>
-          </div>
-        );
-    }
   };
 
   return (
@@ -166,8 +133,7 @@ const VoiceChatbot = () => {
             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
               Multilingual Voice AI Assistant
             </h1>
-            <p className="text-gray-600 mt-1">Powered by Gemini API - Speak naturally in your preferred language</p>
-            <BackendStatusIndicator />
+            <p className="text-gray-600 mt-1">Powered by Groq API with Speech-to-Text & Text-to-Speech</p>
           </div>
           
           <div className="flex items-center gap-4">
@@ -194,26 +160,24 @@ const VoiceChatbot = () => {
         </div>
       </Card>
 
+      {/* Backend Status */}
+      <div className="mb-4">
+        <BackendStatus />
+      </div>
+
       {/* Chat Messages */}
       <Card className="flex-1 mb-4 p-4 bg-white/80 backdrop-blur-sm border-0 shadow-lg overflow-hidden">
         <div className="h-full overflow-y-auto space-y-4">
           {messages.length === 0 && (
             <div className="flex items-center justify-center h-full text-gray-500">
               <div className="text-center">
-                <Mic className="mx-auto h-12 w-12 mb-4 opacity-50" />
-                <p className="text-lg">Start a conversation by recording your voice</p>
-                <p className="text-sm mt-2">Press and hold the microphone button to record</p>
-                {backendStatus === 'disconnected' && (
-                  <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-                    <p className="text-red-700 font-medium">Backend Server Not Running</p>
-                    <p className="text-red-600 text-sm mt-1">
-                      Please start the Django backend on localhost:8000
-                    </p>
-                    <p className="text-red-600 text-xs mt-2">
-                      Run: <code className="bg-red-100 px-1 rounded">cd backend && python manage.py runserver</code>
-                    </p>
-                  </div>
-                )}
+                <div className="text-6xl mb-4">🎙️</div>
+                <p className="text-lg">Start a multilingual conversation</p>
+                <p className="text-sm mt-2">Press and hold the microphone to record in {languages.find(l => l.code === selectedLanguage)?.name}</p>
+                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+                  <p className="font-medium text-blue-800">Workflow:</p>
+                  <p className="text-blue-700">Speech → Text → Translation → Groq AI → Translation → Speech</p>
+                </div>
               </div>
             </div>
           )}
@@ -227,8 +191,9 @@ const VoiceChatbot = () => {
               <Card className="p-4 bg-gray-100 max-w-xs">
                 <div className="flex items-center gap-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span className="text-sm text-gray-600">Gemini AI is thinking...</span>
+                  <span className="text-sm text-gray-600">Processing voice message...</span>
                 </div>
+                <p className="text-xs text-gray-500 mt-1">STT → Translation → Groq → TTS</p>
               </Card>
             </div>
           )}
