@@ -2,7 +2,7 @@
 Django>=4.0
 djangorestframework
 django-cors-headers
-google-generativeai
+groq
 google-cloud-speech
 google-cloud-texttospeech
 google-cloud-translate

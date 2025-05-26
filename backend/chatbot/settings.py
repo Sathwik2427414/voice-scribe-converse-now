@@ -1,4 +1,3 @@
-
 import os
 from pathlib import Path
 from dotenv import load_dotenv
@@ -57,10 +56,10 @@ STATIC_URL = '/static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # API Keys from environment
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 GOOGLE_APPLICATION_CREDENTIALS = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
 
 # Print API key status for debugging
-print(f"Gemini API Key loaded: {'Yes' if GEMINI_API_KEY else 'No'}")
-if GEMINI_API_KEY:
-    print(f"API Key starts with: {GEMINI_API_KEY[:10]}...")
+print(f"Groq API Key loaded: {'Yes' if GROQ_API_KEY else 'No'}")
+if GROQ_API_KEY:
+    print(f"API Key starts with: {GROQ_API_KEY[:10]}...")
